@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#123b5d"><meta name="description" content="Offline-first document scanner">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png">
+<title>PAK Scanner</title>
+<style>
+:root{--navy:#123b5d;--blue:#1769aa;--bg:#f2f6fa;--ink:#142638;--line:#d6e0e8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:linear-gradient(120deg,#123b5d,#1769aa);color:#fff;padding:20px 16px 18px}header h1{margin:0;font-size:25px}header p{margin:5px 0 0;opacity:.9;font-size:14px}
+main{max-width:760px;margin:auto;padding:14px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:14px;margin:0 0 14px;box-shadow:0 3px 12px #18364c0b}
+h2{font-size:17px;margin:0 0 12px}.buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+button,.filebtn{border:0;border-radius:11px;background:var(--blue);color:white;padding:12px 10px;font-weight:650;font-size:14px;text-align:center;cursor:pointer;min-height:44px}
+button.secondary,.filebtn.secondary{background:#e8f0f6;color:#173d5b;border:1px solid #d3e1eb}button.danger{background:#a93232}.filebtn input{display:none}
+button:disabled{opacity:.45;cursor:not-allowed}.hint{font-size:13px;color:#52687a;line-height:1.5}.status{background:#edf6fc;padding:10px;border-radius:10px;font-size:13px;margin-top:10px;white-space:pre-wrap}
+#preview{width:100%;max-height:48vh;object-fit:contain;background:#e9eef2;border-radius:10px;display:block;touch-action:manipulation}
+#cropCanvas{width:100%;display:block;max-height:55vh;object-fit:contain;background:#e9eef2;border-radius:10px;touch-action:none}
+.list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.item{border:2px solid transparent;border-radius:12px;background:#f5f8fa;padding:8px;min-width:0}.item.selected{border-color:#1769aa;background:#eaf5ff}.item img{width:100%;height:135px;object-fit:contain;background:#e4e9ed;border-radius:7px}.item label{display:flex;gap:6px;align-items:center;font-size:13px;margin-top:7px;overflow-wrap:anywhere}.item input{width:18px;height:18px}.smallbtn{padding:8px;font-size:12px;min-height:36px;margin-top:7px;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row button{flex:1}.range{width:100%}.hidden{display:none!important}.footer{text-align:center;font-size:12px;color:#637687;padding:4px 0 18px}
+@media(min-width:600px){.list{grid-template-columns:repeat(3,minmax(0,1fr))}.item img{height:160px}}
+</style></head>
+<body>
+<header><h1>📄 PAK Scanner</h1><p>Scan • Crop • Clean B&W • PDF • Share — offline-ready</p></header>
+<main>
+<section class="panel"><h2>1. Add document</h2><div class="buttons">
+<label class="filebtn">📷 Camera scan<input id="cameraInput" type="file" accept="image/*" capture="environment"></label>
+<label class="filebtn secondary">🖼️ Import gallery<input id="galleryInput" type="file" accept="image/*" multiple></label>
+</div><p class="hint">Camera button phone ka camera khol sakta hai. Gallery se ek ya zyada images select karein.</p>
+<div id="status" class="status" role="status">Ready. Pehle camera ya gallery se image add karein.</div></section>
+<section class="panel" id="editorPanel"><h2>2. Edit current image</h2><img id="preview" alt="Selected document preview" class="hidden">
+<div id="cropArea" class="hidden"><p class="hint">Crop: image par ungli se rectangle banayein. Phir Apply Crop dabayein.</p><canvas id="cropCanvas"></canvas>
+<div class="row"><button id="applyCrop">Apply Crop</button><button id="cancelCrop" class="secondary">Cancel</button></div></div>
+<div class="buttons" style="margin-top:10px">
+<button id="startCrop" class="secondary" disabled>✂️ Crop</button><button id="autoDetect" class="secondary" disabled>🔎 Auto-detect edges</button>
+<button id="bw" disabled>⚫ Clean B&W</button><button id="color" class="secondary" disabled>🌈 Original color</button>
+<button id="rotate" class="secondary" disabled>↻ Rotate</button><button id="saveCurrent" disabled>⬇️ Save image</button>
+</div><p class="hint">Auto-detect edge finding ek best-effort estimate hai; har photo mein document ke corners sahi pakarne ki guarantee nahi. Zarurat par manual crop karein.</p></section>
+<section class="panel"><h2>3. Pages (<span id="count">0</span>)</h2><div class="row" style="margin-bottom:10px"><button id="selectAll" class="secondary" disabled>☑ Select All</button><button id="selectNone" class="secondary" disabled>Clear selection</button><button id="deleteSelected" class="danger" disabled>Delete selected</button></div>
+<div id="pages" class="list"></div><p class="hint">PDF/share ke liye pages select karein. Page order ko list mein add hone ke order mein rakha gaya hai.</p></section>
+<section class="panel"><h2>4. Export / share</h2><div class="buttons">
+<button id="makePdf" disabled>📑 Create PDF</button><button id="share" disabled>↗ Share selected</button>
+<button id="saveAll" class="secondary" disabled>⬇️ Save selected images</button><button id="install" class="secondary hidden">📲 Install app</button>
+</div><p class="hint">Share options Android ke share menu aur installed apps par depend karte hain. Agar file share na ho, pehle save/download karke WhatsApp ya email mein attach karein.</p></section>
+<div class="footer">PAK Scanner • Offline-ready web app • Your images are processed on this device</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let pages=[], current=-1, cropState=null, deferredPrompt=null;
+const status=(s)=>$('status').textContent=s;
+const uid=()=>Math.random().toString(36).slice(2);
+function loadFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>resolve({id:uid(),name:(file.name||'scan').replace(/\.[^.]+$/,''),src:r.result,selected:true});im.onerror=reject;im.src=r.result};r.onerror=reject;r.readAsDataURL(file)})}
+async function addFiles(files){let arr=[...files].filter(f=>f.type.startsWith('image/'));if(!arr.length)return;status('Images load ho rahi hain...');for(const f of arr){try{pages.push(await loadFile(f))}catch(e){}}current=pages.length-1;render();status(arr.length+' image(s) add ho gayi.')}
+$('cameraInput').addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+$('galleryInput').addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+function imgFor(p){return new Promise((resolve,reject)=>{let i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=p.src})}
+function render(){ $('count').textContent=pages.length; const box=$('pages');box.innerHTML='';pages.forEach((p,i)=>{let d=document.createElement('div');d.className='item'+(p.selected?' selected':'');let im=document.createElement('img');im.src=p.src;im.alt=p.name;im.onclick=()=>{current=i;showCurrent()};let lab=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.checked=p.selected;cb.onchange=()=>{p.selected=cb.checked;renderButtons();d.classList.toggle('selected',p.selected)};let txt=document.createElement('span');txt.textContent=(i+1)+'. '+p.name;lab.append(cb,txt);let edit=document.createElement('button');edit.className='smallbtn secondary';edit.textContent=i===current?'Current page':'Edit this page';edit.onclick=()=>{current=i;showCurrent()};d.append(im,lab,edit);box.append(d)});renderButtons();showCurrent()}
+function renderButtons(){let has=pages.length>0,sel=pages.some(p=>p.selected);['startCrop','autoDetect','bw','color','rotate','saveCurrent'].forEach(id=>$(id).disabled=current<0||!pages[current]);['selectAll','selectNone','deleteSelected','makePdf','share','saveAll'].forEach(id=>$(id).disabled=id==='selectAll'||id==='selectNone'? !has:!sel)}
+function showCurrent(){let p=pages[current];if(!p){$('preview').classList.add('hidden');return} $('preview').src=p.src;$('preview').classList.remove('hidden');$('cropArea').classList.add('hidden');$('cropCanvas').classList.remove('hidden')}
+function updateCurrent(src){if(current<0)return;pages[current].src=src;render();status('Current page update ho gaya.')}
+function canvasFrom(img){let c=document.createElement('canvas');c.width=img.naturalWidth||img.width;c.height=img.naturalHeight||img.height;c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c}
+$('bw').onclick=async()=>{let im=await imgFor(pages[current]),c=canvasFrom(im),x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),a=d.data;let hist=new Uint32Array(256),gray=new Uint8Array(a.length/4);for(let j=0,k=0;j<a.length;j+=4,k++){let g=Math.round(.299*a[j]+.587*a[j+1]+.114*a[j+2]);gray[k]=g;hist[g]++}let total=gray.length,sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];let sumB=0,wB=0,max=-1,threshold=150;for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;let wF=total-wB;if(!wF)break;sumB+=t*hist[t];let mB=sumB/wB,mF=(sum-sumB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>max){max=v;threshold=t}}for(let k=0,j=0;k<gray.length;k++,j+=4){let v=gray[k]>threshold?255:0;a[j]=a[j+1]=a[j+2]=v}x.putImageData(d,0,0);updateCurrent(c.toDataURL('image/jpeg',.94));status('Clean B&W apply ho gaya. Agar letters kharab hon to Original color dabakar dobara try karein.')};
+$('color').onclick=()=>{if(pages[current].original)updateCurrent(pages[current].original);else status('Original color restore karne ke liye page ko dobara import karein; edit se pehle ka original alag copy nahi rakha gaya.');};
+$('rotate').onclick=async()=>{let im=await imgFor(pages[current]),c=document.createElement('canvas');c.width=im.height;c.height=im.width;let x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(Math.PI/2);x.drawImage(im,-im.width/2,-im.height/2);updateCurrent(c.toDataURL('image/jpeg',.95))};
+let cropCanvas=$('cropCanvas'), cropCtx=cropCanvas.getContext('2d');
+$('startCrop').onclick=async()=>{let im=await imgFor(pages[current]);cropState={im,rect:null,drag:false,start:null,scale:1};cropCanvas.width=im.naturalWidth;cropCanvas.height=im.naturalHeight;cropCtx.drawImage(im,0,0);$('cropArea').classList.remove('hidden');$('preview').classList.add('hidden');drawCrop()};
+function drawCrop(){if(!cropState)return;cropCtx.drawImage(cropState.im,0,0);if(cropState.rect){let r=cropState.rect;cropCtx.fillStyle='rgba(0,0,0,.35)';cropCtx.fillRect(0,0,cropCanvas.width,cropCanvas.height);cropCtx.clearRect(r.x,r.y,r.w,r.h);cropCtx.drawImage(cropState.im,r.x,r.y,r.w,r.h,r.x,r.y,r.w,r.h);cropCtx.strokeStyle='#00a8ff';cropCtx.lineWidth=Math.max(3,cropCanvas.width/500);cropCtx.strokeRect(r.x,r.y,r.w,r.h)}}
+function point(e){let b=cropCanvas.getBoundingClientRect();return {x:(e.clientX-b.left)*cropCanvas.width/b.width,y:(e.clientY-b.top)*cropCanvas.height/b.height}}
+cropCanvas.onpointerdown=e=>{if(!cropState)return;cropCanvas.setPointerCapture(e.pointerId);cropState.start=point(e);cropState.drag=true;cropState.rect={x:cropState.start.x,y:cropState.start.y,w:1,h:1}};
+cropCanvas.onpointermove=e=>{if(!cropState?.drag)return;let p=point(e),s=cropState.start;cropState.rect={x:Math.min(s.x,p.x),y:Math.min(s.y,p.y),w:Math.abs(p.x-s.x),h:Math.abs(p.y-s.y)};drawCrop()};
+cropCanvas.onpointerup=()=>{if(cropState)cropState.drag=false};
+$('applyCrop').onclick=()=>{let r=cropState?.rect;if(!r||r.w<10||r.h<10){status('Pehle image par crop rectangle banayein.');return}let c=document.createElement('canvas');c.width=Math.round(r.w);c.height=Math.round(r.h);c.getContext('2d').drawImage(cropState.im,r.x,r.y,r.w,r.h,0,0,c.width,c.height);cropState=null;$('cropArea').classList.add('hidden');updateCurrent(c.toDataURL('image/jpeg',.95));};
+$('cancelCrop').onclick=()=>{cropState=null;$('cropArea').classList.add('hidden');$('preview').classList.remove('hidden')};
+$('autoDetect').onclick=async()=>{let im=await imgFor(pages[current]),c=canvasFrom(im),ctx=c.getContext('2d'),w=c.width,h=c.height;let sw=Math.min(180,w),sh=Math.min(180,h),small=document.createElement('canvas');small.width=sw;small.height=sh;small.getContext('2d').drawImage(im,0,0,sw,sh);let d=small.getContext('2d').getImageData(0,0,sw,sh).data;let corners=[d[0],d[(sw-1)*4],d[((sh-1)*sw)*4],d[((sh-1)*sw+sw-1)*4]];let bg=corners.reduce((a,v)=>a+v,0)/4, minX=sw,minY=sh,maxX=0,maxY=0,found=0;for(let y=2;y<sh-2;y+=1)for(let x=2;x<sw-2;x+=1){let k=(y*sw+x)*4,g=.299*d[k]+.587*d[k+1]+.114*d[k+2];if(Math.abs(g-bg)>28){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);found++}}if(found<80||(maxX-minX)<sw*.25||(maxY-minY)<sh*.25){status('Auto-detect ko clear document edge nahi mila. Manual Crop use karein.');return}let pad=2;let sx=Math.max(0,Math.floor((minX-pad)*w/sw)),sy=Math.max(0,Math.floor((minY-pad)*h/sh)),ex=Math.min(w,Math.ceil((maxX+pad)*w/sw)),ey=Math.min(h,Math.ceil((maxY+pad)*h/sh));let out=document.createElement('canvas');out.width=ex-sx;out.height=ey-sy;out.getContext('2d').drawImage(im,sx,sy,out.width,out.height,0,0,out.width,out.height);updateCurrent(out.toDataURL('image/jpeg',.95));status('Approximate auto-crop apply kiya. Corners check karein; result sahi na ho to manual Crop use karein.')};
+function downloadBlob(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+function dataBlob(data){let [head,b64]=data.split(',');let bin=atob(b64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:head.match(/:(.*?);/)[1]})}
+$('saveCurrent').onclick=()=>{let p=pages[current];downloadBlob(dataBlob(p.src),p.name+'.jpg');status('Image download shuru. Android browser mein Downloads check karein; Gallery mein move karna par sakta hai.')};
+$('saveAll').onclick=()=>{let sel=pages.filter(p=>p.selected);sel.forEach((p,i)=>setTimeout(()=>downloadBlob(dataBlob(p.src),(p.name||'scan')+'.jpg'),i*350));status(sel.length+' image download(s) start kiye.')};
+$('selectAll').onclick=()=>{pages.forEach(p=>p.selected=true);render()};
+$('selectNone').onclick=()=>{pages.forEach(p=>p.selected=false);render()};
+$('deleteSelected').onclick=()=>{pages=pages.filter(p=>!p.selected);current=pages.length?Math.min(current,pages.length-1):-1;render();status('Selected pages delete ho gaye.')};
+function base64Bytes(data){let s=data.split(',')[1],b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+async function imageJpeg(p){let im=await imgFor(p);let c=document.createElement('canvas');let scale=Math.min(1,1800/Math.max(im.width,im.height));c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return {bytes:base64Bytes(c.toDataURL('image/jpeg',.88)),w:c.width,h:c.height}}
+function makePdf(objects,root){let chunks=[],offsets=[0],pos=0;const push=s=>{let b=typeof s==='string'?new TextEncoder().encode(s):s;chunks.push(b);pos+=b.length};push('%PDF-1.4\n');for(let i=1;i<objects.length;i++){offsets[i]=pos;push(i+' 0 obj\n');for(let part of objects[i])push(part);push('\nendobj\n')}let xref=pos;push('xref\n0 '+objects.length+'\n0000000000 65535 f \n');for(let i=1;i<objects.length;i++)push(String(offsets[i]).padStart(10,'0')+' 00000 n \n');push('trailer\n<< /Size '+objects.length+' /Root '+root+' 0 R >>\nstartxref\n'+xref+'\n%%EOF');return new Blob([new Uint8Array(chunks.flatMap(x=>Array.from(x)))],{type:'application/pdf'})}
+$('makePdf').onclick=async()=>{let sel=pages.filter(p=>p.selected);if(!sel.length)return;status('PDF ban rahi hai...');try{let objs=[null, ['<< /Type /Catalog /Pages 2 0 R >>']];let pageIds=[];for(let p of sel){let {bytes,w,h}=await imageJpeg(p);let pageId=objs.length;let imgId=pageId+2;let contentId=pageId+3;let pageNo=pageId+1;pageIds.push(pageNo);objs.push([`<< /Type /Pages /Kids [${pageIds.map(n=>n+' 0 R').join(' ')}] /Count ${pageIds.length} >>`]); // placeholder overwritten below
+objs.push([`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Im${pageIds.length} ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`]);
+objs.push([`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.length} >>\nstream\n`,bytes,'\nendstream']);
+let stream=`q\n${w} 0 0 ${h} 0 0 cm\n/Im${pageIds.length} Do\nQ\n`;let sb=new TextEncoder().encode(stream);objs.push([`<< /Length ${sb.length} >>\nstream\n`,sb,'endstream']);
+}objs[2]=[`<< /Type /Pages /Kids [${pageIds.map(n=>n+' 0 R').join(' ')}] /Count ${pageIds.length} >>`];let blob=makePdf(objs,1);downloadBlob(blob,'PAK-Scanner.pdf');status('PDF download start ho gayi. Downloads folder check karein.')}catch(e){console.error(e);status('PDF nahi ban saki. Images kam karke dobara try karein.')}};
+$('share').onclick=async()=>{let sel=pages.filter(p=>p.selected);try{let files=[];for(let p of sel)files.push(new File([dataBlob(p.src)],(p.name||'scan')+'.jpg',{type:'image/jpeg'}));if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:'PAK Scanner documents'});status('Share menu khul gaya.')}else{status('Is browser mein file sharing available nahi. Save selected images dabayein, phir WhatsApp/email mein attach karein.')}}catch(e){status('Sharing cancel hui ya browser ne block ki. Save selected images try karein.')}};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('install').classList.remove('hidden')});
+$('install').onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}else status('Chrome menu (⋮) > Add to Home screen try karein.')};
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script></body></html>
