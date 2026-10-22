@@ -1,0 +1,24 @@
+
+{
+  "id": "/Pak-Scanner-MANGOOL/",
+  "name": "PAK Scanner",
+  "short_name": "PAK Scanner",
+  "description": "Scan documents, crop images and create PDFs",
+  "start_url": "/Pak-Scanner-MANGOOL/",
+  "scope": "/Pak-Scanner-MANGOOL/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1565c0",
+  "icons": [
+    {
+      "src": "/Pak-Scanner-MANGOOL/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/Pak-Scanner-MANGOOL/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
