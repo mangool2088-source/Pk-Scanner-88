@@ -3,7 +3,8 @@ PAK SCANNER UPDATED — ANDROID SETUP
 WHAT'S INCLUDED
 - Camera capture and gallery multi-image import
 - Manual crop rectangle using touch
-- Approximate automatic edge crop (not guaranteed on every document/photo)
+- Automatic best-effort edge crop for camera captures and gallery imports (can be turned off with a checkbox)
+- Manual crop and an Auto-detect edges button remain available
 - Clean B&W using adaptive global Otsu threshold
 - Rotate, select all, clear selection, delete selected
 - Multi-page PDF creation with embedded JPEG pages
@@ -26,7 +27,7 @@ ANDROID PHONE SETUP (GitHub Pages)
 LIMITATIONS / HONEST NOTES
 - Browser cannot guarantee silent direct saving into Android Gallery. Downloads usually go to Downloads; move/share into Gallery if needed.
 - WhatsApp, Bluetooth and email targets are controlled by Android's share sheet and installed apps; the app cannot force a specific target.
-- Automatic edge detection is a rough estimate, not professional perspective correction. Manual crop is available.
+- Automatic edge detection is a rough estimate, not professional perspective correction. It may crop incorrectly or fail on busy backgrounds, shadows, colored surfaces, or low contrast. Check every result and use manual crop when needed.
 - Offline mode works only after the site and files are cached on the device. Browser may clear cache.
 - This is a PWA/web app, not an APK. APK needs a separate Android wrapper/build and testing.
 - The included PDF builder embeds JPEG pages and works locally; very large photos may use lots of memory. If PDF fails, use fewer pages or smaller photos.
