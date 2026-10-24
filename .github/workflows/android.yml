@@ -74,7 +74,30 @@ jobs:
             gradle wrapper --gradle-version 8.14.3
           fi
           chmod +x gradlew
+                - name: Fix Java and Kotlin JVM targets
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -e
+          FILE="app/build.gradle"
 
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: app/build.gradle not found"
+            exit 1
+          fi
+
+          cat >> "$FILE" <<'EOF'
+
+          android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          EOF
       - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew --no-daemon assembleDebug
