@@ -1,5 +1,5 @@
 
-name: Build Android APK
+name: Build Pak Scanner APK
 
 on:
   workflow_dispatch:
@@ -14,37 +14,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract ZIP and find project
+      - name: Find and extract project ZIP
         shell: bash
         run: |
           set -e
-          echo "Repository files:"
-          find . -maxdepth 3 -type f | head -100
-
           ZIP=$(find . -type f -name '*.zip' \
             -not -path '*/.git/*' | head -1)
 
           if [ -n "$ZIP" ]; then
-            echo "Extracting $ZIP"
             mkdir -p extracted
-            unzip -o "$ZIP" -d extracted
+            unzip -oq "$ZIP" -d extracted
           fi
 
-          WRAPPER=$(find . -type f -name gradlew \
+          ROOT="$PWD"
+          PROJECT=$(find "$ROOT" -type f \
+            \( -name settings.gradle -o -name settings.gradle.kts \) \
             -not -path '*/.git/*' | head -1)
 
-          if [ -z "$WRAPPER" ]; then
-            echo "ERROR: ZIP does not contain gradlew."
-            echo "A real Android Gradle project and wrapper are needed."
+          if [ -z "$PROJECT" ]; then
+            echo "ERROR: settings.gradle file not found."
+            find . -maxdepth 4 -type f | head -100
             exit 1
           fi
 
-          echo "Project wrapper found: $WRAPPER"
-          chmod +x "$WRAPPER"
-          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
+          DIR=$(dirname "$PROJECT")
+          echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+          echo "Project folder: $DIR"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -52,10 +50,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Generate Gradle Wrapper if missing
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.14.3
+          fi
+          chmod +x gradlew
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build APK
+      - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew --no-daemon assembleDebug
 
