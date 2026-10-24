@@ -4,7 +4,9 @@ name: Build Pak Scanner APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
 permissions:
   contents: read
@@ -17,37 +19,61 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Find and extract project ZIP
+      - name: Extract ZIP and find Android project
         shell: bash
         run: |
           set -e
-          ZIP=$(find . -type f -name '*.zip' \
-            -not -path '*/.git/*' | head -1)
+
+          ZIP=$(find . -type f -name '*.zip' -not -path '*/.git/*' | head -n 1)
 
           if [ -n "$ZIP" ]; then
             mkdir -p extracted
             unzip -oq "$ZIP" -d extracted
           fi
 
-          PROJECT=$(find "$PWD" -type f \
-            \( -name settings.gradle -o -name settings.gradle.kts \) \
-            -not -path '*/.git/*' | head -1)
+          PROJECT=$(find "$PWD" -type f \( -name settings.gradle -o -name settings.gradle.kts \) -not -path '*/.git/*' | head -n 1)
 
           if [ -z "$PROJECT" ]; then
-            echo "ERROR: settings.gradle not found."
+            echo "ERROR: settings.gradle not found in repository or ZIP."
             find . -maxdepth 4 -type f | head -100
             exit 1
           fi
 
           DIR=$(dirname "$PROJECT")
           echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
-          echo "Project folder: $DIR"
+          echo "Android project: $DIR"
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Check pre-installed Android SDK
+        shell: bash
+        run: |
+          set -e
+
+          if [ -z "$ANDROID_HOME" ]; then
+            echo "ERROR: ANDROID_HOME is not set on this runner."
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+          if [ ! -d "$ANDROID_HOME" ]; then
+            echo "ERROR: Android SDK directory not found."
+            exit 1
+          fi
+
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)
+
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses || true
+          else
+            echo "WARNING: sdkmanager not found; checking build requirements next."
+          fi
 
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -58,22 +84,17 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         shell: bash
         run: |
+          set -e
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 8.14.3
           fi
           chmod +x gradlew
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept SDK licenses
-        shell: bash
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-
       - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
-        run: ./gradlew --no-daemon assembleDebug
+        shell: bash
+        run: |
+          ./gradlew --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
