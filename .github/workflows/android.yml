@@ -74,7 +74,7 @@ jobs:
             gradle wrapper --gradle-version 8.14.3
           fi
           chmod +x gradlew
-                - name: Fix Java and Kotlin JVM targets
+        - name: Fix Java and Kotlin JVM targets
         working-directory: ${{ env.PROJECT_DIR }}
         shell: bash
         run: |
