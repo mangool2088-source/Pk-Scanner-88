@@ -1,25 +1,20 @@
-# ScanConnect Android starter
+# ScanConnect Android project
 
-An Android starter project with:
-- Camera document scanner with automatic edge detection/cropping (ML Kit Document Scanner).
-- Import an image from Gallery.
-- Offline black-and-white processing and a basic contrast/brightness enhancement.
-- Save processed images to Gallery.
-- Export the current image as a one-page PDF.
-- Share the image through Android's share sheet (WhatsApp, Bluetooth and other installed apps when supported).
-- GitHub Actions workflow to build a debug APK for free.
+This project contains a two-option home screen:
+- Scan Document
+- Online Chat & Calls Setup
 
-## Build APK on GitHub (free)
-1. Create a new GitHub repository.
-2. Upload/extract all files in this ZIP into the repository root.
-3. Commit to `main` (or `master`).
-4. Open **Actions** and select **Build Android APK**. You can also press **Run workflow**.
-5. When it finishes, open the workflow run and download the **ScanConnect-debug-apk** artifact.
-6. Extract the artifact ZIP to get `app-debug.apk`. Send that APK to friends. Android may warn that it is from outside Play Store.
+The Scan Document screen supports multi-page camera scanning through Google ML Kit Document Scanner, multi-image gallery import, page selection, select/deselect all, black-and-white processing, contrast enhancement, 90-degree rotation, saving selected images to Pictures/ScanConnect, creating one multi-page PDF in Downloads, and sharing the PDF through Android's share sheet.
 
-## Requirements and limitations
-- Android Studio is optional if using GitHub Actions.
-- First scanner launch may require Google Play services and an internet connection to download scanner components. Image edits, saving and PDF export run on-device.
-- Enhancement is a simple offline contrast/brightness filter, not AI restoration.
-- This ZIP does **not** contain a completed online chat/calling service. Real text/image/audio messaging, audio/video calls and Gmail/phone/Facebook login need a configured backend, authentication provider credentials, WebRTC signaling and TURN servers. See `SETUP.md`.
-- This starter creates a debug APK. Publishing a signed release APK needs a signing key and secure GitHub Secrets.
+## Build APK with GitHub Actions
+1. Extract this ZIP on your computer/phone.
+2. Upload the **contents** of this folder to the root of your GitHub repository (so `app`, `.github`, `build.gradle`, and `settings.gradle` are at repository root).
+3. Open GitHub → Actions → **Build Android APK** → Run workflow.
+4. When the run succeeds, open it and download the `ScanConnect-debug-apk` artifact.
+
+The online chat/call screen is currently setup information only. Actual messaging and audio/video calls still require backend, authentication, signaling, and call infrastructure.
+
+Note: This source was updated, but an Android build could not be run in this environment. Build and test the APK on GitHub Actions before installing it.
+
+
+Upgrade v1.1: Main screen contains only Scan Document and Online Chat & Calls Setup. Scan Document keeps camera/gallery, image tools, select/deselect all, save/share, and creates one multi-page PDF from all selected pages. Build with GitHub Actions workflow: Build Android APK.
