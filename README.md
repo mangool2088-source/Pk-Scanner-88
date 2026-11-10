@@ -1,20 +1,31 @@
-# ScanConnect Android project
+# PAK Scanner Android project
 
-This project contains a two-option home screen:
-- Scan Document
-- Online Chat & Calls Setup
+This is a complete starter Android Studio/Gradle project. It builds a debug APK using GitHub Actions.
 
-The Scan Document screen supports multi-page camera scanning through Google ML Kit Document Scanner, multi-image gallery import, page selection, select/deselect all, black-and-white processing, contrast enhancement, 90-degree rotation, saving selected images to Pictures/ScanConnect, creating one multi-page PDF in Downloads, and sharing the PDF through Android's share sheet.
+## Features included
+- Home screen with exactly two choices: Scan Document and Online Chat & Calls Setup
+- ML Kit document scanner (camera scanning, automatic document edge detection/cropping, multi-page scan)
+- Import multiple images from gallery
+- Select/deselect pages, rotate, delete
+- Manual crop: drag the four corner handles with your finger for each selected page
+- Black & white conversion and contrast enhancement
+- Save selected pages to Pictures/PAK Scanner
+- Create one multi-page PDF for all selected pages, saved to Download/PAK Scanner
+- Share the generated PDF
 
-## Build APK with GitHub Actions
-1. Extract this ZIP on your computer/phone.
-2. Upload the **contents** of this folder to the root of your GitHub repository (so `app`, `.github`, `build.gradle`, and `settings.gradle` are at repository root).
-3. Open GitHub → Actions → **Build Android APK** → Run workflow.
-4. When the run succeeds, open it and download the `ScanConnect-debug-apk` artifact.
+## Build from a phone using GitHub
+1. Create a new GitHub account and verify your email.
+2. Create a new repository named `PAK-Scanner`, choose Public or Private, and create it empty (do not add README).
+3. Extract this ZIP on your Android phone.
+4. Upload the *contents* of this extracted project to the repository root. Keep the folder structure. In particular, `.github/workflows/build-apk.yml` must be present.
+5. Open the repository's Actions tab. If GitHub asks to enable workflows, enable them.
+6. Select `Build PAK Scanner APK` and press `Run workflow`.
+7. When the run completes successfully, open it and download the `PAK-Scanner-debug-apk` artifact.
+8. Extract the downloaded artifact ZIP and install `app-debug.apk`.
 
-The online chat/call screen is currently setup information only. Actual messaging and audio/video calls still require backend, authentication, signaling, and call infrastructure.
-
-Note: This source was updated, but an Android build could not be run in this environment. Build and test the APK on GitHub Actions before installing it.
-
-
-Upgrade v1.1: Main screen contains only Scan Document and Online Chat & Calls Setup. Scan Document keeps camera/gallery, image tools, select/deselect all, save/share, and creates one multi-page PDF from all selected pages. Build with GitHub Actions workflow: Build Android APK.
+## Important
+- This is a debug APK for testing, not a Play Store release.
+- The document scanner uses Google ML Kit / Google Play services; the first launch may need internet to download its scanner module. The scan processing itself is on-device once available.
+- Online Chat & Calls Setup is currently a placeholder screen because no chat/calling service provider or server has been specified.
+- Automatic crop is provided by ML Kit; manual crop is also available using the four draggable corner handles.
+- Test on the target Android phone. Android may ask you to allow installation from the browser or file manager.
