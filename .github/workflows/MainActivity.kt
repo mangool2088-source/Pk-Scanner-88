@@ -29,9 +29,9 @@ import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.mlkit.documentscanner.GmsDocumentScannerOptions
-import com.google.android.gms.mlkit.documentscanner.GmsDocumentScanning
-import com.google.android.gms.mlkit.documentscanner.GmsDocumentScanningResult
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
